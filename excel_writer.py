@@ -15,6 +15,7 @@ OUTPUT_COLUMNS = [
     "官网核验学费",
     "核验状态",
     "学费来源链接",
+    "官网原文引用",
     "备注",
 ]
 
@@ -113,6 +114,7 @@ def _map_col(rec: dict) -> dict:
         "官网核验学费": rec.get("verified_tuition", ""),
         "核验状态": rec.get("status", ""),
         "学费来源链接": rec.get("source_url", ""),
+        "官网原文引用": rec.get("source_quote", ""),
         "备注": rec.get("notes", ""),
     }
 

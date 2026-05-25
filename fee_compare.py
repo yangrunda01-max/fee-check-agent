@@ -122,8 +122,10 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
     unit = extracted.get("unit", "")
     is_international = extracted.get("is_international", False)
     fee_type = extracted.get("fee_type", "")
+    error_type = extracted.get("error_type", "")
     note = extracted.get("note", "")
-    fee_text = extracted.get("fee_text", "")
+    source_quote = extracted.get("source_quote", "")
+    result["source_quote"] = source_quote
 
     result["source_url"] = source_url
     result["verified_tuition"] = f"{currency} {amount}".strip() if amount else ""
@@ -136,11 +138,23 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
         result["notes"] = "官网需通过 fee calculator 查询，官网核验学费已按原学费暂填，需人工复核"
         return result
 
-    # --- Page load / API failure ---
-    if confidence == "none" and ("API" in note or "Failed to parse" in note or "configured" in note):
+    # --- API / config / parse / truncation failure ---
+    if confidence == "none" and (
+        error_type in ("NO_API_KEY", "API_ERROR", "PARSE_ERROR", "MODEL_TRUNCATED")
+        or ("API" in note or "Failed to parse" in note or "configured" in note)
+    ):
         result["verified_tuition"] = _append_review_suffix(original_str)
         result["status"] = "需人工复核"
-        result["notes"] = "疑似反爬或 JS 动态页面，官网核验学费已按原学费暂填，需人工打开官网核验"
+        _err_msgs = {
+            "NO_API_KEY": "DeepSeek API 密钥未配置",
+            "API_ERROR": "DeepSeek API 调用异常",
+            "PARSE_ERROR": "模型输出 JSON 解析失败",
+            "MODEL_TRUNCATED": "模型输出不完整或被截断",
+        }
+        result["notes"] = _err_msgs.get(error_type, "疑似反爬或 JS 动态页面")
+        result["notes"] += "，官网核验学费已按原学费暂填，需人工打开官网核验"
+        if note:
+            result["notes"] += f"；{note}"
         return result
 
     # --- No fee found ---

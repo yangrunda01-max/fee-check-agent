@@ -47,7 +47,7 @@ def _is_found_fee(data: dict) -> bool:
 def _call_model(model: str, page_text: str, source_url: str) -> dict:
     """Call DeepSeek API with the specified model and return parsed result."""
     if not DEEPSEEK_API_KEY:
-        return _fallback_result(source_url, "DeepSeek API key not configured")
+        return _fallback_result(source_url, "DeepSeek API key not configured", error_type="NO_API_KEY")
 
     truncated = page_text[:MAX_PAGE_TEXT_LENGTH]
     system_prompt = _load_prompt()
@@ -78,9 +78,11 @@ def _call_model(model: str, page_text: str, source_url: str) -> dict:
             content = resp.choices[0].message.content or ""
             finish_reason = resp.choices[0].finish_reason
             if finish_reason == "length":
-                preview = content[:300]
-                note = f"API response truncated, JSON may be incomplete. Raw response: {preview}"
-                return _fallback_result(source_url, note)
+                return _fallback_result(
+                    source_url,
+                    note="Model response was truncated",
+                    error_type="MODEL_TRUNCATED",
+                )
             return _parse_response(content, source_url)
 
         except Exception as e:
@@ -89,7 +91,7 @@ def _call_model(model: str, page_text: str, source_url: str) -> dict:
             if attempt < MAX_RETRIES:
                 time.sleep(2 ** attempt)
 
-    return _fallback_result(source_url, f"API error: {last_error}")
+    return _fallback_result(source_url, f"API error: {last_error}", error_type="API_ERROR")
 
 
 def extract_fee(page_text: str, source_url: str) -> dict:
@@ -105,7 +107,7 @@ def extract_fee(page_text: str, source_url: str) -> dict:
     fallback is exclusively for tuition fee extraction.
     """
     if not DEEPSEEK_API_KEY:
-        return _fallback_result(source_url, "DeepSeek API key not configured")
+        return _fallback_result(source_url, "DeepSeek API key not configured", error_type="NO_API_KEY")
 
     # Step 1: Call flash model
     flash_result = _call_model(DEEPSEEK_MODEL, page_text, source_url)
@@ -151,6 +153,7 @@ def _parse_response(content: str, source_url: str) -> dict:
             data = json.loads(raw)
             data = {k: v for k, v in data.items() if k in _ALLOWED}
             data.setdefault("source_url", source_url)
+            data.setdefault("error_type", "NONE")
             return data
         except json.JSONDecodeError:
             pass
@@ -158,10 +161,10 @@ def _parse_response(content: str, source_url: str) -> dict:
     if raw:
         preview = raw[:300]
         note += f": {preview}"
-    return _fallback_result(source_url, note)
+    return _fallback_result(source_url, note, error_type="PARSE_ERROR")
 
 
-def _fallback_result(source_url: str, note: str) -> dict:
+def _fallback_result(source_url: str, note: str, error_type: str = "UNKNOWN") -> dict:
     return {
         "source_quote": "",
         "currency": "",
@@ -171,5 +174,6 @@ def _fallback_result(source_url: str, note: str) -> dict:
         "is_domestic": False,
         "source_url": source_url,
         "confidence": "none",
+        "error_type": error_type,
         "note": note,
     }
