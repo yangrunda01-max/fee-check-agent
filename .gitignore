@@ -1,0 +1,38 @@
+# Environment
+.env
+start_claude.ps1
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+
+# Input Excel files
+input/*.xlsx
+
+# Output files
+output/
+
+# Cache
+cache/
+
+# Backup
+backup_working_version/
+
+# Claude local files
+.claude/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
