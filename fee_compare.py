@@ -93,6 +93,13 @@ def _parse_amount(amount_str: str | None) -> float | None:
         return None
 
 
+def _review_verified(original_str: str, amount: str, currency: str, unit: str) -> str:
+    """Build verified_tuition for manual review, preferring extracted data."""
+    if amount:
+        return _format_fee(amount, currency, unit) + "（需复核）"
+    return _append_review_suffix(original_str)
+
+
 def compare(original_tuition: str | None, extracted: dict | None) -> dict:
     """Compare original tuition with extracted fee info.
 
@@ -121,7 +128,6 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
     currency = extracted.get("currency", "")
     unit = extracted.get("unit", "")
     is_international = extracted.get("is_international", False)
-    fee_type = extracted.get("fee_type", "")
     error_type = extracted.get("error_type", "")
     note = extracted.get("note", "")
     source_quote = extracted.get("source_quote", "")
@@ -133,7 +139,7 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
     # --- Fee calculator check (conservative rule) ---
     if _is_fee_calculator_case(source_url, note):
         result["tuition"] = original_str
-        result["verified_tuition"] = _append_review_suffix(original_str)
+        result["verified_tuition"] = _review_verified(original_str, amount, currency, unit)
         result["status"] = "需人工复核"
         result["notes"] = "官网需通过 fee calculator 查询，官网核验学费已按原学费暂填，需人工复核"
         return result
@@ -143,7 +149,7 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
         error_type in ("NO_API_KEY", "API_ERROR", "PARSE_ERROR", "MODEL_TRUNCATED")
         or ("API" in note or "Failed to parse" in note or "configured" in note)
     ):
-        result["verified_tuition"] = _append_review_suffix(original_str)
+        result["verified_tuition"] = _review_verified(original_str, amount, currency, unit)
         result["status"] = "需人工复核"
         _err_msgs = {
             "NO_API_KEY": "DeepSeek API 密钥未配置",
@@ -160,7 +166,7 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
     # --- No fee found ---
     if confidence == "none":
         result["status"] = "未找到"
-        result["verified_tuition"] = _append_review_suffix(original_str)
+        result["verified_tuition"] = _review_verified(original_str, amount, currency, unit)
         result["notes"] = "未找到明确官网学费，官网核验学费已按原学费暂填，需人工复核"
         if note:
             result["notes"] += f"；{note}"
@@ -190,16 +196,9 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
             return result
 
         if not source_url:
-            result["verified_tuition"] = _append_review_suffix(original_str)
+            result["verified_tuition"] = _review_verified(original_str, amount, currency, unit)
             result["status"] = "需人工复核"
             result["notes"] = "无来源链接，官网核验学费已按原学费暂填，需人工复核"
-            if note:
-                result["notes"] += f"；{note}"
-            return result
-
-        if is_domestic(extracted):
-            result["status"] = "需人工复核"
-            result["notes"] = "页面仅显示 domestic/local 学费，未找到国际生学费"
             if note:
                 result["notes"] += f"；{note}"
             return result
@@ -207,7 +206,7 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
         # --- P0-1: Only per_year unit qualifies for auto-update ---
         if unit != "per_year":
             desc = {"total": "全程总价(total)", "per_semester": "学期学费(per_semester)", "per_unit": "学分学费(per_unit)"}.get(unit, f"单位({unit})")
-            result["verified_tuition"] = _append_review_suffix(original_str)
+            result["verified_tuition"] = _review_verified(original_str, amount, currency, unit)
             result["status"] = "需人工复核"
             result["notes"] = f"官网{desc}，非年费，需人工复核"
             if note:
@@ -217,7 +216,7 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
         # --- P0-2: Unparseable amount (range, invalid format) → manual review ---
         verified_amount = _parse_amount(amount)
         if verified_amount is None:
-            result["verified_tuition"] = _append_review_suffix(original_str)
+            result["verified_tuition"] = _review_verified(original_str, amount, currency, unit)
             result["status"] = "需人工复核"
             result["notes"] = "官网金额格式无法解析（如区间金额），需人工复核"
             if note:
@@ -246,7 +245,7 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
 
         # --- P0-2: Either amount unparseable → manual review ---
         if original_amount is None:
-            result["verified_tuition"] = _append_review_suffix(original_str)
+            result["verified_tuition"] = _review_verified(original_str, amount, currency, unit)
             result["status"] = "需人工复核"
             result["notes"] = "原始学费金额格式无法解析，需人工复核"
             if note:

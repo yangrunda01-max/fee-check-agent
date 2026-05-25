@@ -73,7 +73,7 @@ def _call_model(model: str, page_text: str, source_url: str) -> dict:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0.0,
-                max_tokens=3000,
+                max_tokens=700,
             )
             content = resp.choices[0].message.content or ""
             finish_reason = resp.choices[0].finish_reason
