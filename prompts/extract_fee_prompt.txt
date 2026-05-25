@@ -11,8 +11,8 @@ Extract international tuition fee from university webpage text below.
 - Distinguish: per_year | total | per_semester | per_unit.
 - If page only has a fee calculator with no amount, confidence="none".
 
-## STRICT — Only these 8 fields allowed
-NO fee_text, fee_type, year, source_url, explanation, reasoning, markdown, code blocks, backticks, or any extra fields.
+## STRICT — Only these 9 fields allowed
+NO fee_text, year, source_url, explanation, reasoning, markdown, code blocks, backticks, or any extra fields.
 
 {
     "amount": "numeric digits only, or empty string",
@@ -21,6 +21,7 @@ NO fee_text, fee_type, year, source_url, explanation, reasoning, markdown, code 
     "confidence": "high | medium | low | none",
     "is_international": true | false,
     "is_domestic": true | false,
+    "fee_type": "international | domestic | empty",
     "source_quote": "max 60 chars, short verbatim quote, or empty string",
     "note": "max 80 chars brief note, or empty string"
 }

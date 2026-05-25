@@ -28,9 +28,65 @@ def _safe_text(value) -> str:
 
 
 def _parse_amount(amount_str: str | None) -> float | None:
+    """Parse amount string to float. Returns None for ranges or unparseable formats.
+
+    Rejects ranges: X–Y, X-Y, X to Y, X~Y.
+    Handles European formats: 1.234,56 -> 1234.56, 1.234.567 -> 1234567, 20.000 -> 20000.
+    """
     if not amount_str:
         return None
-    cleaned = re.sub(r"[^0-9.]", "", str(amount_str))
+    text = str(amount_str).strip()
+    if not text:
+        return None
+
+    # Remove currency symbols and whitespace for analysis
+    cleaned = re.sub(r"[£€$¥￥\s]", "", text)
+    if not cleaned:
+        return None
+
+    # Detect and reject ranges
+    if re.match(
+        r"^\d+[.,\d\s]*\s*(?:–|—|-|to|~|～)\s*\d+",
+        cleaned, re.IGNORECASE
+    ):
+        return None
+
+    has_comma = "," in cleaned
+    has_period = "." in cleaned
+    period_count = cleaned.count(".")
+
+    # Detect European format (comma = decimal, period = thousands separator)
+    is_european = False
+
+    if has_comma:
+        comma_idx = cleaned.rfind(",")
+        after_comma = cleaned[comma_idx + 1:]
+        if re.match(r"^\d{1,2}$", after_comma):
+            is_european = True
+
+    if not is_european and period_count > 1:
+        is_european = True
+
+    if not is_european and has_period and not has_comma:
+        after_last_dot = cleaned.split(".")[-1]
+        if len(after_last_dot) >= 3:
+            is_european = True
+
+    if is_european:
+        parts = cleaned.split(",")
+        if len(parts) == 2:
+            integer_part = parts[0].replace(".", "")
+            cleaned = integer_part + "." + parts[1]
+        else:
+            cleaned = cleaned.replace(",", "").replace(".", "")
+    else:
+        cleaned = cleaned.replace(",", "")
+
+    # Final cleanup — keep only digits and at most one period
+    cleaned = re.sub(r"[^0-9.]", "", cleaned)
+    if cleaned.count(".") > 1:
+        cleaned = cleaned.replace(".", "")
+
     try:
         return float(cleaned)
     except ValueError:
@@ -134,6 +190,26 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
                 result["notes"] += f"；{note}"
             return result
 
+        # --- P0-1: Only per_year unit qualifies for auto-update ---
+        if unit != "per_year":
+            desc = {"total": "全程总价(total)", "per_semester": "学期学费(per_semester)", "per_unit": "学分学费(per_unit)"}.get(unit, f"单位({unit})")
+            result["verified_tuition"] = _append_review_suffix(original_str)
+            result["status"] = "需人工复核"
+            result["notes"] = f"官网{desc}，非年费，需人工复核"
+            if note:
+                result["notes"] += f"；{note}"
+            return result
+
+        # --- P0-2: Unparseable amount (range, invalid format) → manual review ---
+        verified_amount = _parse_amount(amount)
+        if verified_amount is None:
+            result["verified_tuition"] = _append_review_suffix(original_str)
+            result["status"] = "需人工复核"
+            result["notes"] = "官网金额格式无法解析（如区间金额），需人工复核"
+            if note:
+                result["notes"] += f"；{note}"
+            return result
+
         if not original_str:
             result["tuition"] = verified_str
             result["status"] = "已更新"
@@ -154,15 +230,14 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
                     result["notes"] += f"；{note}"
                 return result
 
-            # Check unit mismatch (total vs annual)
-            if unit == "total" and _looks_annual(original_amount, verified_amount):
-                result["tuition"] = original_str
-                result["verified_tuition"] = _append_review_suffix(original_str)
-                result["status"] = "需人工复核"
-                result["notes"] = "官网为总学费或单位不一致，官网核验学费已按原学费暂填，需人工复核"
-                if note:
-                    result["notes"] += f"；{note}"
-                return result
+        # --- P0-2: Either amount unparseable → manual review ---
+        if original_amount is None:
+            result["verified_tuition"] = _append_review_suffix(original_str)
+            result["status"] = "需人工复核"
+            result["notes"] = "原始学费金额格式无法解析，需人工复核"
+            if note:
+                result["notes"] += f"；{note}"
+            return result
 
         # Fee has changed — auto-update
         result["tuition"] = verified_str

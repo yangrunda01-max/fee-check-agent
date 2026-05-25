@@ -34,11 +34,13 @@ def _is_found_fee(data: dict) -> bool:
     amount = data.get("amount", "")
     is_international = data.get("is_international", False)
     is_domestic = data.get("is_domestic", False)
+    unit = data.get("unit", "")
     return (
         confidence in ("high", "medium")
         and bool(amount)
         and is_international is True
         and is_domestic is not True
+        and unit == "per_year"
     )
 
 
@@ -141,7 +143,8 @@ def extract_fee(page_text: str, source_url: str) -> dict:
 def _parse_response(content: str, source_url: str) -> dict:
     """Parse the API response. With JSON mode enabled, response should be valid JSON."""
     _ALLOWED = {"amount", "currency", "unit", "confidence",
-                "is_international", "is_domestic", "source_quote", "note"}
+                "is_international", "is_domestic", "fee_type",
+                "source_quote", "note"}
     raw = content.strip()
     if raw:
         try:
