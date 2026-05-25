@@ -5,7 +5,9 @@ load_dotenv()
 
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
+DEEPSEEK_PRO_MODEL = os.getenv("DEEPSEEK_PRO_MODEL", "deepseek-v4-pro")
+DEEPSEEK_ENABLE_PRO_FALLBACK = os.getenv("DEEPSEEK_ENABLE_PRO_FALLBACK", "false").lower() == "true"
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "30"))
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
 REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", "1.0"))

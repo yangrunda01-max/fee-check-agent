@@ -87,6 +87,9 @@ def process_program(
     logger.info("  [Extract] confidence=%s, fee=%s %s",
                 extracted.get("confidence"), extracted.get("currency"), extracted.get("amount"))
 
+    # Save the extraction note (e.g., Pro fallback info) for later use
+    extraction_note = extracted.get("note", "")
+
     if extracted.get("confidence") in ("high", "medium"):
         result.update(_apply_extraction(result, extracted))
         logger.info("  -> %s: %s", result["status"], result.get("notes", ""))
@@ -120,6 +123,8 @@ def process_program(
             result["status"] = "未找到"
             result["notes"] = "官网页面及官网候选链接未找到明确 international tuition fee，官网核验学费已按原学费暂填，需人工复核"
             logger.info("  -> 无学费相关链接")
+        if extraction_note:
+            result["notes"] = (result["notes"] + "；" + extraction_note) if result["notes"] else extraction_note
         return result
 
     # ========================================================================
@@ -130,7 +135,7 @@ def process_program(
 
     # DeepSeek found no relevant links among candidates
     if not ranked_links:
-        _apply_not_found(result, official_links, fetch_warning, fetch_warning_notes)
+        _apply_not_found(result, official_links, fetch_warning, fetch_warning_notes, extraction_note)
         logger.info("  -> %s: %s", result["status"], result.get("notes", ""))
         return result
 
@@ -189,7 +194,7 @@ def process_program(
     # ========================================================================
     # Nothing found after all traversals — apply fallback rules
     # ========================================================================
-    _apply_not_found(result, official_links, fetch_warning, fetch_warning_notes)
+    _apply_not_found(result, official_links, fetch_warning, fetch_warning_notes, extraction_note)
     logger.info("  -> %s: %s", result["status"], result.get("notes", ""))
     return result
 
@@ -199,6 +204,7 @@ def _apply_not_found(
     official_links: list[dict],
     fetch_warning: str | None,
     fetch_warning_notes: str | None,
+    extraction_note: str = "",
 ) -> None:
     """Apply the appropriate fallback status when no fee is found after all link traversals.
 
@@ -216,6 +222,8 @@ def _apply_not_found(
         result["verified_tuition"] = _append_review_suffix(result["original_tuition"])
         result["status"] = "未找到"
         result["notes"] = "官网页面及官网候选链接未找到明确 international tuition fee，官网核验学费已按原学费暂填，需人工复核"
+    if extraction_note:
+        result["notes"] = (result["notes"] + "；" + extraction_note) if result["notes"] else extraction_note
 
 
 def _apply_extraction(result: dict, extracted: dict) -> dict:

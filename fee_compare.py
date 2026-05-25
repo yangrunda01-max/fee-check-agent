@@ -92,12 +92,16 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
         result["status"] = "未找到"
         result["verified_tuition"] = _append_review_suffix(original_str)
         result["notes"] = "未找到明确官网学费，官网核验学费已按原学费暂填，需人工复核"
+        if note:
+            result["notes"] += f"；{note}"
         return result
 
     # --- Check if domestic ---
     if is_domestic(extracted):
         result["status"] = "需人工复核"
         result["notes"] = "页面仅显示 domestic/local 学费，未找到国际生学费"
+        if note:
+            result["notes"] += f"；{note}"
         return result
 
     # --- Build the verified tuition string ---
@@ -111,23 +115,31 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
             result["verified_tuition"] = _append_review_suffix(original_str)
             result["status"] = "需人工复核"
             result["notes"] = "金额为空，无法自动更新"
+            if note:
+                result["notes"] += f"；{note}"
             return result
 
         if not source_url:
             result["verified_tuition"] = _append_review_suffix(original_str)
             result["status"] = "需人工复核"
             result["notes"] = "无来源链接，官网核验学费已按原学费暂填，需人工复核"
+            if note:
+                result["notes"] += f"；{note}"
             return result
 
         if is_domestic(extracted):
             result["status"] = "需人工复核"
             result["notes"] = "页面仅显示 domestic/local 学费，未找到国际生学费"
+            if note:
+                result["notes"] += f"；{note}"
             return result
 
         if not original_str:
             result["tuition"] = verified_str
             result["status"] = "已更新"
             result["notes"] = "原无学费，已填入官网数据"
+            if note:
+                result["notes"] += f"；{note}"
             return result
 
         original_amount = _parse_amount(original_str)
@@ -138,6 +150,8 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
                 result["tuition"] = original_str
                 result["status"] = "无需更新"
                 result["notes"] = "官网学费与原始数据一致"
+                if note:
+                    result["notes"] += f"；{note}"
                 return result
 
             # Check unit mismatch (total vs annual)
@@ -146,12 +160,16 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
                 result["verified_tuition"] = _append_review_suffix(original_str)
                 result["status"] = "需人工复核"
                 result["notes"] = "官网为总学费或单位不一致，官网核验学费已按原学费暂填，需人工复核"
+                if note:
+                    result["notes"] += f"；{note}"
                 return result
 
         # Fee has changed — auto-update
         result["tuition"] = verified_str
         result["status"] = "已更新"
         result["notes"] = f"学费更新: {original_str} → {verified_str}"
+        if note:
+            result["notes"] += f"；{note}"
         return result
 
     # --- Low confidence → manual review ---

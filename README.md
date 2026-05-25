@@ -29,6 +29,29 @@ python main.py input/programs.xlsx
 python main.py input/programs.xlsx --limit 5
 ```
 
+## Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEEPSEEK_API_KEY` | — | DeepSeek API key (required) |
+| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | API base URL |
+| `DEEPSEEK_MODEL` | `deepseek-v4-flash` | Default model for fee extraction and link ranking |
+| `DEEPSEEK_PRO_MODEL` | `deepseek-v4-pro` | Pro model used as optional fallback for fee extraction |
+| `DEEPSEEK_ENABLE_PRO_FALLBACK` | `false` | Set to `true` to enable Pro fallback when Flash doesn't find a fee |
+
+### Pro fallback behavior
+
+Pro fallback only applies to **tuition fee extraction** (`fee_extractor.py`). Link ranking (`link_ranker.py`) always uses only `DEEPSEEK_MODEL`.
+
+When enabled (`DEEPSEEK_ENABLE_PRO_FALLBACK=true`):
+1. Flash model runs first. If it finds a clear international tuition fee → result returned immediately.
+2. If Flash does **not** find a clear fee → Pro model runs as fallback.
+3. If Pro finds a clear fee → Pro result is used with an annotation note.
+4. If Pro also doesn't find a fee → Flash result is returned with an annotation note.
+
+When disabled (default, `DEEPSEEK_ENABLE_PRO_FALLBACK=false`):
+- Only Flash model runs. No fallback attempt. Simplest and most cost-effective.
+
 ## Input format
 
 An Excel file with columns for: school/university, program/course name, URL/link, and tuition/fee.
