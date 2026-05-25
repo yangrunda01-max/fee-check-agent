@@ -48,14 +48,15 @@ _FALLBACK_KEYWORDS = ("无有效URL", "页面失败", "反爬", "JS", "动态页
 def _apply_final_fallback(records: list[dict]) -> None:
     """Final safety net before writing Excel.
 
-    If any of these conditions is met:
+    Conditions that trigger fallback:
       - status in (页面失败, 未找到, 需人工复核)
       - notes contains a fallback keyword
       - verified_tuition is empty
 
-    Then:
+    Actions:
       - tuition ← original_tuition
-      - verified_tuition ← original_tuition + (需复核）
+      - verified_tuition: keep extracted data if non-empty, ensure (需复核) marker
+      - Only fallback to original + (需复核) when verified_tuition is empty
       - 页面失败 → 需人工复核
       - append FALLBACK_NOTE to notes (if not already present)
     """
@@ -76,9 +77,12 @@ def _apply_final_fallback(records: list[dict]) -> None:
         # Force tuition back to original
         rec["tuition"] = original
 
-        # Fill verified_tuition with original + （需复核）
-        original_text = safe_text(original)
-        rec["verified_tuition"] = original_text + "（需复核）" if original_text else "（需复核）"
+        # Preserve extracted verified_tuition if non-empty; only fallback to original when empty
+        if not verified:
+            original_text = safe_text(original)
+            rec["verified_tuition"] = original_text + "（需复核）" if original_text else "（需复核）"
+        elif "（需复核）" not in verified:
+            rec["verified_tuition"] = verified + "（需复核）"
 
         # 页面失败 → 需人工复核
         if status == "页面失败":
