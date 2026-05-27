@@ -106,7 +106,7 @@ def compare(original_tuition: str | None, extracted: dict | None) -> dict:
     Returns a dict with keys: tuition, original_tuition, verified_tuition,
     status, source_url, notes.
     """
-    original_str = (original_tuition or "").strip()
+    original_str = _safe_text(original_tuition)
     result = {
         "tuition": original_str,
         "original_tuition": original_str,
